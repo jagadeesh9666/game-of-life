@@ -9,6 +9,7 @@ pipeline {
     }
     tools {
         jdk 'java8'
+        maven 'MAVEN_3.9'
     }
     stages {
         stage('code') {
