@@ -4,12 +4,9 @@ pipeline {
         retry(3)
         timeout(time: 30, unit: 'MINUTES')
     }
-    triggers {
-        pollSCM('* * * * *')
-    }
     tools {
         jdk 'java8'
-        maven 'MAVEN_3.9'
+        maven 'MAVEN_3.6'
     }
     parameters {
         choice(name: 'GOAL', choices: ['package', 'clean package', 'install', 'clean install'], description: 'This is maven goal')
@@ -21,29 +18,33 @@ pipeline {
                     branch: 'master'
             }
         }
-        stage('package') {
+       stage('build and package') {
             steps {
-                sh script: "mvn ${params.GOAL}"
+                 rtMavenDeployer (
+                    id: "Gol_DEPLOYER",
+                    serverId: "jfrog",
+                    releaseRepo: 'gol-libs-release-local',
+                    snapshotRepo: 'gol-libs-snapshot-local'
+                )
+                rtMavenRun (
+                    tool: 'MAVEN_3.6', // Tool name from Jenkins configuration
+                    pom: 'pom.xml',
+                    goals: 'clean install',
+                    deployerId: "Gol_DEPLOYER"
+                    //,
+                    //buildName: "${JOB_NAME}",
+                    //buildNumber: "${BUILD_ID}"
+                )
+                rtPublishBuildInfo (
+                    serverId: "jfrog"
+                )
             }
+        }
+        stage('reporting') {
+            steps {
+                junit testResults: '**/target/surefire-reports/TEST-*.xml'
+            }
+        }
+    }
 
-        }
-        stage('report') {
-            steps {
-                junit testResults: '**/surefire-reports/TEST-*.xml'
-                archiveArtifacts artifacts: '**/target/gameoflife.war'
-            }
-        }
-    }
-    post {
-        success {
-            mail subject: '${JOB_NAME}: has completed with success',
-                 body: 'your project is effective \n Build Url ${BUILD_URL}',
-                 to: 'jh@gmail.com'
-        }
-        failure {
-            mail subject: '${JOB_NAME}:: has completed with failed',
-                 body: 'your project is defective \n Build Url ${BUILD_URL}',
-                 to: 'jh@gmail.com'
-        }
-    }
 }
